@@ -140,6 +140,7 @@ online:
     stz sbufadr
     lda #>inbuf
     sta sbufadr+1
+    lda #$C5	  ; ONLINE system command
     jsr gosystem
     bcc @continue
     rts
