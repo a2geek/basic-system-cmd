@@ -158,8 +158,6 @@ online:
     jsr gosystem
     bcc @continue
     rts
-@exit:
-    jmp crout
 
 @continue:
     ldx #0
@@ -167,23 +165,32 @@ online:
     ldy buffer,x
     beq @exit
     jsr printsd
+    lda #' '|$80
+    jsr cout
     tya
     and #$0f
     beq @deverr
     tay
-:   inx
+    lda #'/'|$80
+:   jsr cout
+    inx
     lda buffer,x
     ora #$80
-    jsr cout
     dey
-    bne :-
+    bpl :-
 @adjust:
     jsr crout
     txa
-    clc
-    adc #$0f
+    and #$0f	; Check if we advanced past this buffer
+    beq @loop
+    txa
     and #$f0
-    bra @loop
+    clc
+    adc #$10
+    tax
+    bne @loop
+@exit:
+    jmp crout
 ; A device error message
 @deverr:
     lda #'E'|$80
@@ -222,7 +229,7 @@ printsd:
     lsr
     ora #'0'|$80
     jsr cout
-    lda #' '|$80
+    lda #','|$80
     jsr cout
     lda #'D'|$80
     jsr cout
