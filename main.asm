@@ -49,10 +49,21 @@ crout       = $fd8e
 prbyte      = $fdda
 cout        = $fded
 
+; Application stuff:
+
+buffer      = $6800
+
 
     .org $2000
 
 install:
+    ldy #0
+:   lda _CodeStartAddress,y
+    sta _CodeBeginAddress,y
+    iny
+    cpy #(_CodeEndAddress-_CodeBeginAddress)
+    bne :-
+
     lda extrncmd+1
     sta nextcmd+1
     lda extrncmd
@@ -62,10 +73,13 @@ install:
     sta extrncmd
     lda #<entry
     sta extrncmd
+
     rts
 
+_CodeStartAddress:
     .org $6000
 
+_CodeBeginAddress:
 entry:
     ldx #0
 @again:
@@ -138,7 +152,7 @@ cd:
 online:
     stz sunitnum
     stz sbufadr
-    lda #>inbuf
+    lda #>buffer
     sta sbufadr+1
     lda #$C5	  ; ONLINE system command
     jsr gosystem
@@ -150,40 +164,37 @@ online:
 @continue:
     ldx #0
 @loop:
-    lda inbuf,x
+    ldy buffer,x
     beq @exit
-    jsr printsd     ; Side-effect is to move Acc. to Y-Reg.
+    jsr printsd
     tya
     and #$0f
     beq @deverr
-;    pha
     tay
 :   inx
-    lda inbuf,x
+    lda buffer,x
+    ora #$80
     jsr cout
     dey
     bne :-
-;    pla
-;    cmp #$0f        ; If string length was 15, already at next entry
-;    beq @loop
 @adjust:
     jsr crout
     txa
     clc
-    adc #$10
+    adc #$0f
     and #$f0
     bra @loop
 ; A device error message
 @deverr:
     lda #'E'|$80
     jsr cout
-    lda #'r'|$80
+    lda #'R'|$80
     jsr cout
     jsr cout
     lda #'='|$80
     jsr cout
     inx
-    lda inbuf,x
+    lda buffer,x
     tay             ; short-term save
     jsr prbyte
     tya
@@ -194,14 +205,13 @@ online:
     lda #'('|$80
     jsr cout
     inx
-    lda inbuf,x
+    ldy buffer,x
     jsr printsd
     lda #')'|$80
     jsr cout
     bra @adjust
 
 printsd:
-    tay
     lda #'S'|$80
     jsr cout
     tya
@@ -218,9 +228,9 @@ printsd:
     jsr cout
     tya
     and #$80
-    asl
-    rol
-    ora #'0'|$80
+    asl			; Drive 2 will set carry...
+    adc #'1'|$80	; ... making the '1' a '2'
     jmp cout
 
+_CodeEndAddress:
 
