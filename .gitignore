@@ -1,0 +1,13 @@
+# Ignore assembly listings
+*.lst
+
+# Ignore object files
+*.o
+
+# Ignore assembled code
+*.bin
+
+# Ignore output disk images except for the template:
+*.po
+!template.po
+
