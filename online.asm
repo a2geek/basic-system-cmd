@@ -1,8 +1,6 @@
 ;
-;  main.s
-;  cd-online-basic-system-integration
+;  online.asm
 ;
-;  Created by Rob Greene on 9/14/15.
 ;  Copyright (c) 2015 Rob Greene. All rights reserved.
 ;
 
@@ -14,6 +12,13 @@
     .byte .strat(string,i) | $80
     .endrep
     .byte 0
+.endmacro
+
+; ASCII string with high-bit set
+.macro asciih string
+    .repeat .strlen(string),i
+    .byte .strat(string,i) | $80
+    .endrep
 .endmacro
 
 ; Dextral (right-most) Character Inverted
@@ -57,6 +62,17 @@ buffer      = $6800
     .org $2000
 
 install:
+
+; Requires 65C02 or later:
+    sed
+    lda #$99
+    clc
+    adc #$01
+    cld
+    bmi @6502
+
+; Move code to destination address:
+; TODO: Get address from BASIC.SYSTEM and move there, relocate code
     ldy #0
 :   lda _CodeStartAddress,y
     sta _CodeBeginAddress,y
@@ -64,17 +80,40 @@ install:
     cpy #(_CodeEndAddress-_CodeBeginAddress)
     bne :-
 
-    lda extrncmd+1
+; Setup BASIC.SYSTEM hooks:
+; 1. Save EXTRNCMD
+    lda extrncmd+2
     sta nextcmd+1
-    lda extrncmd
+    lda extrncmd+1
     sta nextcmd
-
+; 2. Place our hook into EXTRNCMD
     lda #>entry
-    sta extrncmd
+    sta extrncmd+2
     lda #<entry
-    sta extrncmd
+    sta extrncmd+1
 
-    rts
+; Notify user:
+    ldy #0
+:   lda msgInstalled,y
+    beq :+
+    jsr cout
+    iny
+    bne :-
+:   rts
+
+@6502:
+    ldy #0
+:   lda err6502,y
+    beq :+
+    jsr cout
+    iny
+    bne :-
+:   rts
+
+err6502:
+    asciizh "ERR: MUST HAVE ENHANCED //E, //C, OR IIGS"
+msgInstalled:
+    asciizh "ONLINE COMMAND INSTALLED"
 
 _CodeStartAddress:
     .org $6000
@@ -82,23 +121,31 @@ _CodeStartAddress:
 _CodeBeginAddress:
 entry:
     ldx #0
-@again:
-    ldy #0
-:   lda cmdtable,x
-    beq ourcommand
-    cmp inbuf,y
-    bne @nextcmd
+:   lda inbuf,x
+    cmp #$e0		; Force input to UPPERCASE for comparison
+    bcc :+
+    and #$df
+:   cmp cmdtable,x
+    bne notOurCommand
     inx
-    iny
-    bra :-
-@nextcmd:
-    inx
-    lda cmdtable,x
-    bne @nextcmd
-    inx         ; Skip jumps
-    inx
-    lda cmdtable,x
-    bne @again
+    cpx #cmdlen
+    bne :--
+
+    lda #cmdlen-1
+    sta xlen
+    lda #<online
+    sta xtrnaddr
+    lda #>online
+    sta xtrnaddr+1
+    stz xcnum
+    lda #$10		; Filename is optional
+    sta pbits
+    lda #$04		; Slot and drive numbers
+    sta pbits+1
+    stz vslot
+    stz vdriv
+    clc
+    rts
 
 notOurCommand:
     sec
@@ -106,33 +153,9 @@ notOurCommand:
 
 nextcmd: .word 0
 
-ourcommand:
-    stx xlen
-    lda cmdtable,x
-    sta xtrnaddr
-    lda cmdtable+1,x
-    sta xtrnaddr+1
-    stz xcnum
-    lda #$10
-    sta pbits
-    lda #$04
-    sta pbits+1
-    stz vslot
-    stz vdriv
-    clc
-    rts
-
 cmdtable:
-    asciizh "CD"
-    .addr   cd
-    asciizh "ONLINE"
-    .addr   online
-
-;
-; Perform CD command
-;
-cd:
-    rts
+    asciih "ONLINE"
+cmdlen = *-cmdtable
 
 ;
 ; Perform ONLINE command
@@ -146,11 +169,20 @@ cd:
 ;
 ; Output:
 ; S7 D1 /HDD
-; S6 D1 Err=$28
-; S5 D1 Err=$57 (S7 D1)
+; S6 D1 ERR=$28
+; S5 D1 ERR=$57 (S7 D1)
 ;
 online:
-    stz sunitnum
+    lda vdriv
+    asl
+    asl
+    asl
+    ora vslot
+    asl
+    asl
+    asl
+    asl
+    sta sunitnum
     stz sbufadr
     lda #>buffer
     sta sbufadr+1
