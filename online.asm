@@ -78,7 +78,7 @@ cout        = $fded
 
 ; Application stuff:
 
-buffer      = $6800
+buffer      = inbuf
 
 
     .org $2000
@@ -189,6 +189,7 @@ notOurCommand:
 ; S5 D1 ERR=$57 (S7 D1)
 ;
 online:
+    stz sunitnum
     lda #>sd
     bit fbits+1
     beq @1              ; Bit was NOT set
