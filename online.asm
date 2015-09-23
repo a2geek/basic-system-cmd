@@ -39,7 +39,8 @@ extrncmd    = $be06    ; External command JMP vector
 xtrnaddr    = $be50    ; Execution address of external command
 xlen        = $be52    ; Length of command string-1
 xcnum       = $be53    ; BASIC cmd number (external command = 0)
-pbits       = $be54    ; Parameter bits
+pbits       = $be54    ; Parameter bits allowed (2 bytes)
+fbits       = $be56    ; Parameter bits found
 vslot       = $be61
 vdriv       = $be62
 gosystem    = $be70
@@ -47,6 +48,27 @@ sonline     = $bec6    ; BASIC.SYSTEM ONLINE parameter table
 sunitnum    = $bec7
 sbufadr     = $bec8
 getbufr     = $bef5
+
+; Parameter bits flags (note setup for two bytes and for lo/hi usage)
+
+pfix        = $0080    ; Prefix needs fetching, pathname optional
+slot        = $0040    ; No parameters to be processed
+rrun        = $0020    ; Command only valid during program
+fnopt       = $0010    ; Filename is optional
+crflg       = $0008    ; CREATE allowed
+t           = $0004    ; File type
+fn2         = $0002    ; Filename #2 for RENAME
+fn1         = $0001    ; Filename expected
+
+ad          = $8000    ; Address
+b           = $4000    ; Byte
+e           = $2000    ; End address
+l           = $1000    ; Length
+line        = $0800    ; '@' line number
+sd          = $0400    ; Slot and drive numbers
+f           = $0200    ; Field
+r           = $0100    ; Record
+v           = $0000    ; Volume number ignored
 
 ; MONITOR locations:
 
@@ -131,6 +153,8 @@ entry:
     cpx #cmdlen
     bne :--
 
+; Setup for BASIC.SYSTEM to parse
+opts = fnopt|sd        ; Filename is optional (due to glitch) and slot and drive
     lda #cmdlen-1
     sta xlen
     lda #<online
@@ -138,24 +162,16 @@ entry:
     lda #>online
     sta xtrnaddr+1
     stz xcnum
-    lda #$10		; Filename is optional
+    lda #<opts
     sta pbits
-    lda #$04		; Slot and drive numbers
+    lda #>opts
     sta pbits+1
-    stz vslot
-    stz vdriv
     clc
     rts
 
 notOurCommand:
     sec
     jmp (nextcmd)
-
-nextcmd: .word 0
-
-cmdtable:
-    asciih "ONLINE"
-cmdlen = *-cmdtable
 
 ;
 ; Perform ONLINE command
@@ -173,8 +189,11 @@ cmdlen = *-cmdtable
 ; S5 D1 ERR=$57 (S7 D1)
 ;
 online:
-    lda vdriv
-    asl
+    lda #>sd
+    bit fbits+1
+    beq @1              ; Bit was NOT set
+    lda vdriv		; 1 or 2, use 2nd bit to toggle drive (then drive 1 has bit off, drive 2 has bit on)
+    and #%00000010
     asl
     asl
     ora vslot
@@ -183,13 +202,13 @@ online:
     asl
     asl
     sta sunitnum
-    stz sbufadr
+@1: stz sbufadr
     lda #>buffer
     sta sbufadr+1
-    lda #$C5	  ; ONLINE system command
+; Note: if we have a specific unit, this is not zero terminated -- fake it!
+    stz buffer+16
+    lda #$C5		; ONLINE system command
     jsr gosystem
-    bcc @continue
-    rts
 
 @continue:
     ldx #0
@@ -197,8 +216,7 @@ online:
     ldy buffer,x
     beq @exit
     jsr printsd
-    lda #' '|$80
-    jsr cout
+    jsr printspc
     tya
     and #$0f
     beq @deverr
@@ -225,22 +243,20 @@ online:
     jmp crout
 ; A device error message
 @deverr:
-    lda #'E'|$80
+    ldy #0
+:   lda msgERR,y
+    beq :+
     jsr cout
-    lda #'R'|$80
-    jsr cout
-    jsr cout
-    lda #'='|$80
-    jsr cout
-    inx
+    iny
+    bne :-
+:   inx
     lda buffer,x
     tay             ; short-term save
     jsr prbyte
     tya
     cmp #$57        ; duplicate volume error
     bne @adjust
-    lda #' '|$80
-    jsr cout
+    jsr printspc
     lda #'('|$80
     jsr cout
     inx
@@ -270,6 +286,19 @@ printsd:
     asl			; Drive 2 will set carry...
     adc #'1'|$80	; ... making the '1' a '2'
     jmp cout
+
+printspc:
+    lda #' '|$80
+    jmp cout
+
+msgERR:
+    asciizh "ERR=$"
+
+cmdtable:
+    asciih "ONLINE"
+cmdlen = *-cmdtable
+
+nextcmd: .word 0
 
 _CodeEndAddress:
 
