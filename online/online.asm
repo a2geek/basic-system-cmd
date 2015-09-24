@@ -142,6 +142,7 @@ _CodeStartAddress:
 
 _CodeBeginAddress:
 entry:
+    cld			; For BASIC.SYSTEM's happiness
     ldx #0
 :   lda inbuf,x
     cmp #$e0		; Force input to UPPERCASE for comparison
