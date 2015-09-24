@@ -189,10 +189,9 @@ notOurCommand:
 ; S5 D1 ERR=$57 (S7 D1)
 ;
 online:
-    stz sunitnum
-    lda #>sd
-    bit fbits+1
-    beq @1              ; Bit was NOT set
+    lda fbits+1
+    and #>sd
+    beq @1              ; Bit was NOT set; Acc = 0
     lda vdriv		; 1 or 2, use 2nd bit to toggle drive (then drive 1 has bit off, drive 2 has bit on)
     and #%00000010
     asl
@@ -202,8 +201,8 @@ online:
     asl
     asl
     asl
-    sta sunitnum
-@1: stz sbufadr
+@1: sta sunitnum
+    stz sbufadr
     lda #>buffer
     sta sbufadr+1
 ; Note: if we have a specific unit, this is not zero terminated -- fake it!
