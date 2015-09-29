@@ -1,0 +1,49 @@
+on run argv
+	set IMAGE to item 1 of argv
+	#set IMAGE to "/Users/rob/asm/basic-system-cmd/online/online.po"
+	
+	tell application "Virtual ]["
+		activate
+		close every machine saving no
+		set theMachine to (make new AppleIIe)
+		tell theMachine
+			set speed to maximum
+			eject device "S6D1"
+			insert IMAGE into device "S6D1"
+			delay 0.5
+			restart
+			delay 0.25
+			-- Load the ONLINE command handler
+			type line "-ONLINE"
+			-- Run all legit sequences of ONLINE command (which also exposes a bug)
+			type line "ONLINE"
+			type line "ONLINE,S3,D1"
+			type line "ONLINE,S3,D2"
+			type line "ONLINE,S6,D1"
+			type line "ONLINE,S6,D2"
+			type line "ONLINE"
+			-- Wait till we have the Applesoft prompt back, then continue
+			repeat
+				delay 1.0 -- Let virtual machine go for a second
+				if the last line of compact screen text = "]" then
+					exit repeat
+				end if
+			end repeat
+			set speed to regular
+			-- Test for bug!
+			--display dialog (count lines of compact screen text)
+			set i to (count lines of compact screen text) - 1
+			if line i of the compact screen text = "S3,D2 ERR=$27" then
+				type line "REM *** SUCCESS ***"
+			else
+				type text "REM >>> FAIL <<<"
+				type ctrl "G"
+				type ctrl "G"
+				type ctrl "G"
+				type line ""
+			end if
+		end tell
+	end tell
+end run
+
+

@@ -184,7 +184,7 @@ printz:
     pha
     rts
 
-	.include "ilen.asm"
+	.include "../shared/ilen.asm"
 
 ; =======================================
 
