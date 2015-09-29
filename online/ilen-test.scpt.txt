@@ -1,0 +1,80 @@
+on run argv
+	set IMAGE to item 1 of argv
+	#set IMAGE to "/Users/rob/asm/basic-system-cmd/online/ilen-test.po"
+	
+	set expected to { ¬
+		"   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F", ¬
+		"   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --", ¬
+		"00|01 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|0F", ¬
+		"10|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|1F", ¬
+		"20|03 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|2F", ¬
+		"30|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|3F", ¬
+		"40|01 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|4F", ¬
+		"50|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|5F", ¬
+		"60|01 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|6F", ¬
+		"70|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|7F", ¬
+		"80|02 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|8F", ¬
+		"90|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|9F", ¬
+		"A0|02 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|AF", ¬
+		"B0|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|BF", ¬
+		"C0|02 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|CF", ¬
+		"D0|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|DF", ¬
+		"E0|02 02 02 02 02 02 02 02 01 02 01 01 03 03 03 03|EF", ¬
+		"F0|02 02 02 02 02 02 02 02 01 03 01 01 03 03 03 03|FF", ¬
+		"   -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --", ¬
+		"   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F" ¬
+	}
+	
+	tell application "Virtual ]["
+		activate
+		close every machine saving no
+		set theMachine to (make new AppleIIe)
+		tell theMachine
+			eject device "S6D1"
+			insert IMAGE into device "S6D1"
+			delay 0.5
+			restart
+			set speed to maximum
+			delay 0.25
+
+			-- Load the ILEN.TEST program
+			type line "-ILEN.TEST"
+
+			-- Wait till we have the Applesoft prompt back, then continue
+			repeat
+				delay 1.0 -- Let virtual machine go for a second
+				if the last line of compact screen text = "]" then
+					exit repeat
+				end if
+			end repeat
+			set speed to regular
+
+			-- Test!
+			set linesout to (count lines of compact screen text) - 1
+			set matches to true
+			set failmessage to ""
+			repeat with j from 1 to count(expected)
+				set a to line (linesout - j + 1) of compact screen text
+			    set e to item ((count of expected) - j + 1) of expected
+				if a is not equal to e
+					set matches to false
+					set failmessage to failmessage & " " & j
+					display dialog "Mismatch:\nA=[" & a & "]\nE=[" & e & "]\n" ¬
+						buttons {"OK"} default button 1
+				end if
+			end repeat
+			
+			if matches then
+				type line "REM *** SUCCESS ***"
+			else
+				type text "REM >>> FAIL <<<"
+				type ctrl "G"
+				type ctrl "G"
+				type ctrl "G"
+				type text failmessage
+			end if
+		end tell
+	end tell
+end run
+
+
