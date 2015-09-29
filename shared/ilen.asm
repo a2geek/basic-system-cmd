@@ -7,18 +7,18 @@
 ;
 ; Calculate Instruction Length
 ; Based on observations in 65C02 data sheet:
-; * Generally, length is based on LOW nibble
-; * There are a few special cases (including X9 column)
+; * Generally, length is based on LOW nibble:
+;   - X0..X7 = 2 bytes
+;   - X8..XB = 1 byte
+;   - XC..XF = 3 bytes
+; * There are a few special cases (including X0 and X9 columns)
 ; Input: Acc. = instruction
 ; Output: Acc. = length
 ;
 .proc ilen
-	bit #$0f
-	bne @notcol0
-@column0:
-	bit #%10010000		; Normal instructions have at least one of these bits set
-	beq @notnormal		; None are set
-@notcol0:			; "Normal" values for ALL columns 0-F
+	bit #%10011111		; Normal instructions have at least one of these bits set
+	beq @column0		; None are set, column 0 special cases ($00 / $20 / $40 / $60)
+@normal:			; "Normal" values for ALL columns 0-F
 	asl
 	asl
 	asl
@@ -36,7 +36,7 @@
 	lda #3
 	rts
 	
-@notnormal:
+@column0:			; Only special cases
 	cmp #$20		; JSR ($20)
 	beq @three
 				; fall through for BRK ($00) / RTI ($40) / RTS ($60)

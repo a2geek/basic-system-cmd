@@ -6,6 +6,8 @@ VIRTUAL2 = /Applications/Virtual\ \]\[/Virtual\ \]\[.app/Contents/MacOS/Virtual\
 all:
 	@echo "Please select a target."
 
+ilen-test: ilen-test.bin
+
 ilen-test.bin: ilen-test.asm
 	cl65 -o ilen-test.bin -t none --start-addr 0x2000 -l ilen-test.asm
 	cp $(TEMPLATE) ilen-test.po
