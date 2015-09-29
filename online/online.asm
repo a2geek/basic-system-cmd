@@ -44,6 +44,7 @@ fbits       = $be56    ; Parameter bits found
 vslot       = $be61
 vdriv       = $be62
 gosystem    = $be70
+xreturn		= $be9e	   ; Guaranteed RTS instruction
 sonline     = $bec6    ; BASIC.SYSTEM ONLINE parameter table
 sunitnum    = $bec7
 sbufadr     = $bec8
@@ -78,7 +79,10 @@ cout        = $fded
 
 ; Application stuff:
 
+cptr		= $0c		; Code pointer
+dptr        = $0e       ; Data pointer
 buffer      = inbuf
+codelen		= (_CodeEndAddress - _CodeBeginAddress)
 
 
     .org $2000
@@ -91,51 +95,98 @@ install:
     clc
     adc #$01
     cld
-    bmi @6502
+    bpl @not6502
+	
+@6502:
+    jsr printz
+    asciizh "ERR: MUST HAVE ENHANCED //E, //C, OR IIGS"
+    rts
+    
+; Get address from BASIC.SYSTEM:
+@not6502:
+    lda #1
+    jsr getbufr
+    bcc @gotmem
+    
+@nomem:
+    jsr printz
+    asciizh "UNABLE TO ALLOCATE MEMORY"
+    rts
+    
+@gotmem:
+    sta cptr+1
+    stz cptr
 
 ; Move code to destination address:
-; TODO: Get address from BASIC.SYSTEM and move there, relocate code
     ldy #0
 :   lda _CodeStartAddress,y
-    sta _CodeBeginAddress,y
+    sta (cptr),y
     iny
-    cpy #(_CodeEndAddress-_CodeBeginAddress)
     bne :-
+
+; Patch code for new location - ASSUMES 1 PAGE ONLY!
+	ldy #0
+@copy:
+	lda (cptr),y
+	jsr ilen	; calculate instruction length
+	tax
+	cpx #3
+	bne :+
+	iny			; Skip instruction
+	dex
+	iny			; Skip low byte
+	dex
+	lda (cptr),y
+	cmp #>_CodeBeginAddress
+	bne :+
+	lda cptr+1
+	sta (cptr),y
+:	iny			; Skip rest of instruction
+	dex
+	bne :-
+	cpy #codelen
+	bcc @copy
 
 ; Setup BASIC.SYSTEM hooks:
 ; 1. Save EXTRNCMD
     lda extrncmd+2
-    sta nextcmd+1
+	ldy #<nextcmd+1
+    sta (cptr),y
     lda extrncmd+1
-    sta nextcmd
+    dey
+    sta (cptr),y
 ; 2. Place our hook into EXTRNCMD
-    lda #>entry
+    lda cptr+1
     sta extrncmd+2
     lda #<entry
     sta extrncmd+1
 
 ; Notify user:
-    ldy #0
-:   lda msgInstalled,y
-    beq :+
-    jsr cout
-    iny
-    bne :-
-:   rts
-
-@6502:
-    ldy #0
-:   lda err6502,y
-    beq :+
-    jsr cout
-    iny
-    bne :-
-:   rts
-
-err6502:
-    asciizh "ERR: MUST HAVE ENHANCED //E, //C, OR IIGS"
-msgInstalled:
+    jsr printz
     asciizh "ONLINE COMMAND INSTALLED"
+    rts
+
+printz:
+    pla
+    sta dptr
+    pla
+    sta dptr+1
+@L: inc dptr
+    bne :+
+    inc dptr+1
+:   lda (dptr)
+    beq @X
+    jsr cout
+    bra @L
+@X: lda dptr+1
+    pha
+    lda dptr
+    pha
+    rts
+
+	.include "ilen.asm"
+
+; =======================================
 
 _CodeStartAddress:
     .org $6000
@@ -143,15 +194,14 @@ _CodeStartAddress:
 _CodeBeginAddress:
 entry:
     cld			; For BASIC.SYSTEM's happiness
-    ldx #0
-:   lda inbuf,x
+    ldx #6
+:   lda inbuf-1,x
     cmp #$e0		; Force input to UPPERCASE for comparison
     bcc :+
     and #$df
-:   cmp cmdtable,x
+:   cmp cmdtable-1,x
     bne notOurCommand
-    inx
-    cpx #cmdlen
+    dex
     bne :--
 
 ; Setup for BASIC.SYSTEM to parse
@@ -160,7 +210,9 @@ opts = fnopt|sd        ; Filename is optional (due to glitch) and slot and drive
     sta xlen
     lda #<online
     sta xtrnaddr
-    lda #>online
+	jsr xreturn
+	tsx
+	lda $100,x			; Retrieve address from stack
     sta xtrnaddr+1
     stz xcnum
     lda #<opts
@@ -206,7 +258,7 @@ online:
     stz sbufadr
     lda #>buffer
     sta sbufadr+1
-; Note: if we have a specific unit, this is not zero terminated -- fake it!
+; Note: if we have a specific unit, the buffer will not be zero terminated -- fake it!
     stz buffer+16
     lda #$C5		; ONLINE system command
     jsr gosystem
@@ -292,6 +344,8 @@ printspc:
     lda #' '|$80
     jmp cout
 
+_CodeEndAddress:
+
 msgERR:
     asciizh "ERR=$"
 
@@ -300,6 +354,4 @@ cmdtable:
 cmdlen = *-cmdtable
 
 nextcmd: .word 0
-
-_CodeEndAddress:
 
