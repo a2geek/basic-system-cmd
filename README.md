@@ -13,7 +13,7 @@ This project is about re-learning everything I've forgotten or never learned:
 
 The general target of these commands is 256 bytes.  
 The loader/relocator stub is less important, but also trying to target 256 bytes.
-This keeps the commands to 1 block and 1 page of used memory.
+This keeps the commands to 1 block on disk and 1 page of used memory.
 
 ## Commands
 
