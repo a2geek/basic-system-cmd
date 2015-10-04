@@ -1,7 +1,7 @@
 ;
 ;  online.asm
 ;
-;  Copyright (c) 2015 Rob Greene. All rights reserved.
+;  Copyright (c) 2015 Rob Greene
 ;
 
 	.PC02   ; Enable 65C02 instructions
