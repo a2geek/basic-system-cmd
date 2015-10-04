@@ -15,16 +15,7 @@ This keeps the commands to 1 block and 1 page of used memory.
 
 # Commands
 
-## ONLINE
+| Command | Description |
+| --- | --- |
+| [`ONLINE`](./online/) | Display volumes online. |
 
-Displays all volumes online.  
-
-    ]ONLINE
-    S3,D2 /RAM
-    S6,D1 ERR=$27
-    ...
-
-Accepts slot/drive parameters.
-
-    ]ONLINE,S3,D2
-    S3,D2 /RAM
