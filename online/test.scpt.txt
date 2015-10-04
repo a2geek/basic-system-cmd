@@ -33,7 +33,7 @@ on run argv
 			-- Test for bug!
 			--display dialog (count lines of compact screen text)
 			set i to (count lines of compact screen text) - 1
-			if line i of the compact screen text = "S3,D2 ERR=$27" then
+			if line i of the compact screen text = "S6,D2 ERR=$27" then
 				type line "REM *** SUCCESS ***"
 			else
 				type text "REM >>> FAIL <<<"
