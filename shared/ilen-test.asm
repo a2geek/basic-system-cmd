@@ -1,11 +1,11 @@
 ;
 ; ilen-test.asm
 ;
+; Copyright (c) 2015 Rob Greene
+;
 ; Semi automated unit test to verify calculated instruction length.
 ; This is paired with the AppleScript program to check for expected results.
 ;
-
-	.PC02   ; Enable 65C02 instructions
 
 	.code    
 

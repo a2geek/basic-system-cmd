@@ -1,8 +1,8 @@
 ;
 ; ilen.asm
 ;
-
-    .PC02   ; Enable 65C02 instructions
+; Copyright (c) 2015 Rob Greene
+;
 
 ;
 ; Calculate Instruction Length
@@ -15,7 +15,7 @@
 ; Input: Acc. = instruction
 ; Output: Acc. = length
 ;
-.proc ilen
+ilen:
 	bit #%10011111		; Normal instructions have at least one of these bits set
 	beq @column0		; None are set, column 0 special cases ($00 / $20 / $40 / $60)
 @normal:			; "Normal" values for ALL columns 0-F
@@ -46,6 +46,5 @@
 @two:
 	lda #2
 	rts
-.endproc
 
 

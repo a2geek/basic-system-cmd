@@ -8,7 +8,7 @@ all: online.bin
 online:	online.bin
 
 online.bin: online.asm
-	cl65 -o online.bin -t none --start-addr 0x2000 -l online.asm
+	cl65 -l online.lst -v -vm -C ../shared/bi-install.config online.asm -o online.bin
 	cp $(TEMPLATE) online.po
 	$(JAVA) -jar $(AC) -p online.po online BIN 0x2000 < online.bin
 

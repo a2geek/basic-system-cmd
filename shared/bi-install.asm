@@ -8,31 +8,37 @@
 ;  Copyright (c) 2015 Rob Greene
 ;
 
-; Application stuff:
-
-cptr		= $0c		; Code pointer
-dptr		= $0e		; Data pointer
+; Check required attributes or parameters
 
 	.ifp02
 	.error "Installer requires 65C02 instructions."
 	.endif
 
+	.if .strlen(CMDNAME) = 0
+	.error "Please define CMDNAME with the name of the command (used in installation message)."
+	.endif
+
+	;.ifndef HOOKADDR
+	;.error "Please define HOOKADDR with the location where extern command needs to be placed (assumed to be JMP instruction)."
+	;.endif
+
+; Zero page
+
+cptr		= $0c		; Code pointer
+dptr		= $0e		; Data pointer
+
+	.include "../include/asciih.inc"
 	.include "../include/asciizh.inc"
 	.include "../include/basic-system.inc"
 	.include "../include/monitor.inc"
 
-	.import __CODE_LOAD__, __CODE_START__, __CODE_SIZE__
-	.import __INIT_LAST__
-
-.macro bi_install hookaddr
-
-	.if .paramcount <> 1
-	.error "Must include hook address in bi-install macro."
-	.endif
+	.import __CODE_LOAD__, __CODE_SIZE__
 
 install:
 
-; Requires 65C02 or later:
+	.segment "RCODE"
+
+; Requires 65C02 or later - detect bug in decimal mode:
 	sed
 	lda #$99
 	clc
@@ -62,7 +68,7 @@ install:
 
 ; Move code to destination address:
 	ldy #0
-:	lda __INIT_LAST__,y
+:	lda _ApplicationStartsHere_,y
 	sta (cptr),y
 	iny
 	bne :-
@@ -93,7 +99,7 @@ install:
 ; Setup BASIC.SYSTEM hooks:
 ; 1. Save EXTRNCMD
 	lda bi_extrncmd+2
-	ldy #<hookaddr+1
+	ldy #<HOOKADDR+2
 	sta (cptr),y
 	lda bi_extrncmd+1
 	dey
@@ -105,7 +111,8 @@ install:
 
 ; Notify user:
 	jsr printz
-	asciizh "ONLINE COMMAND INSTALLED"
+	asciih CMDNAME
+	asciizh " COMMAND INSTALLED"
 	rts
 
 printz:
@@ -126,5 +133,7 @@ printz:
 	pha
 	rts
 
-.endmacro
+	.include "../shared/ilen.asm"
+
+_ApplicationStartsHere_:
 
